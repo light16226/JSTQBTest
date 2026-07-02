@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>資格試験問題集 学習サイト</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header class="hero">
+  <div>
+    <p class="eyebrow">JSTQB</p>
+    <h1>資格試験問題集 学習サイト</h1>
+    <p>問題は <code>data/questions.json</code>、解答ログはブラウザ保存＋JSON出力に対応しています。</p>
+  </div>
+  <div class="heroStats">
+    <span id="totalQuestions">0</span><small>問題</small>
+  </div>
+</header>
+
+<main>
+  <section class="panel controls">
+    <label>章
+      <select id="chapterSelect"></select>
+    </label>
+    <label>出題数
+      <input id="questionLimit" type="number" min="1" value="10">
+    </label>
+    <label class="check"><input id="shuffleQuestions" type="checkbox" checked> 問題をシャッフル</label>
+    <label class="check"><input id="shuffleOptions" type="checkbox" checked> 選択肢をシャッフル</label>
+    <button id="startBtn">学習開始</button>
+  </section>
+
+  <section id="quizPanel" class="panel quiz hidden">
+    <div class="progressLine"><span id="progressText"></span><span id="scoreText"></span></div>
+    <div class="bar"><div id="barFill"></div></div>
+    <p id="qid" class="qid"></p>
+    <h2 id="questionText"></h2>
+    <div id="options"></div>
+    <div id="feedback" class="feedback hidden"></div>
+    <div class="actions">
+      <button id="nextBtn" class="secondary" disabled>次へ</button>
+      <button id="finishBtn" class="ghost">終了してログへ</button>
+    </div>
+  </section>
+
+  <section id="summaryPanel" class="panel hidden">
+    <h2>今回の結果</h2>
+    <div class="cards">
+      <div><strong id="sumTotal">0</strong><span>回答</span></div>
+      <div><strong id="sumCorrect">0</strong><span>正答</span></div>
+      <div><strong id="sumAccuracy">0%</strong><span>正答率</span></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sectionHead">
+      <h2>解答ログ</h2>
+      <div class="actions inline">
+        <button id="exportLogs" class="secondary">logs.jsonを書き出し</button>
+        <label class="fileBtn">logs.jsonを読み込み<input id="importLogs" type="file" accept="application/json"></label>
+        <button id="clearLogs" class="danger">ログ削除</button>
+      </div>
+    </div>
+    <div id="logStats" class="logStats"></div>
+    <div class="tableWrap"><table id="logTable"><thead><tr><th>日時</th><th>問題No</th><th>章</th><th>結果</th><th>あなたの解答</th><th>正答</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+</main>
+<script src="data/data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
