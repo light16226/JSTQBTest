@@ -5,6 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>資格試験問題集 学習サイト</title>
   <link rel="stylesheet" href="assets/styles.css">
+
+<style>
+  .timerLine{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:8px 0 14px;color:var(--muted);font-weight:800}
+  .timerBadge{display:inline-flex;align-items:center;gap:8px;background:#f7f9fd;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--ink)}
+  .timerBadge strong{font-variant-numeric:tabular-nums;font-size:18px}
+  .questionBrowser .browserControls{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin:12px 0}
+  .questionBrowser .browserControls label{min-width:0}
+  .browserMeta{color:var(--muted);font-weight:700;margin:8px 0}
+  .browserPager{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin:12px 0}
+  .browserPager span{color:var(--muted);font-weight:800}
+  .questionCard{border:1px solid var(--line);border-radius:14px;background:#f7f9fd;margin:10px 0;overflow:hidden}
+  .questionCard summary{cursor:pointer;padding:13px 15px;font-weight:800;list-style:none}
+  .questionCard summary::-webkit-details-marker{display:none}
+  .questionCard summary:after{content:'開く';float:right;color:var(--brand);font-size:13px}
+  .questionCard[open] summary:after{content:'閉じる'}
+  .questionCardBody{padding:0 15px 15px}
+  .questionCardBody p{white-space:pre-wrap;margin:8px 0 12px}
+  .browseOptions{margin:10px 0;padding-left:1.4em}
+  .browseOptions li{margin:7px 0;padding:6px 8px;border-radius:10px;background:#fff;border:1px solid var(--line)}
+  .browseOptions li.correctAnswer{border-color:var(--ok);background:#eaf8f2;font-weight:800}
+  .browseExplanation{white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+  .miniTag{display:inline-block;color:var(--muted);font-weight:800;font-size:12px;margin-left:8px}
+  @media(max-width:720px){
+    .timerLine{display:block}.timerBadge{margin-top:8px;width:100%;justify-content:center}
+    .questionBrowser .browserControls{grid-template-columns:1fr}
+    .browserPager{justify-content:stretch}.browserPager button{flex:1;justify-content:center}.browserPager span{width:100%;text-align:center}
+    .questionCard summary{padding-right:52px}.questionCard summary:after{margin-right:-38px}
+  }
+</style>
 </head>
 <body>
 <header class="hero">
@@ -33,6 +62,7 @@
 
   <section id="quizPanel" class="panel quiz hidden">
     <div class="progressLine"><span id="progressText"></span><span id="scoreText"></span></div>
+    <div class="timerLine"><span id="questionTimeHint">この問題の経過時間</span><span class="timerBadge">⏱ <strong id="questionTimer">00:00</strong></span></div>
     <div class="bar"><div id="barFill"></div></div>
     <p id="qid" class="qid"></p>
     <h2 id="questionText"></h2>
@@ -50,6 +80,41 @@
       <div><strong id="sumTotal">0</strong><span>回答</span></div>
       <div><strong id="sumCorrect">0</strong><span>正答</span></div>
       <div><strong id="sumAccuracy">0%</strong><span>正答率</span></div>
+      <div><strong id="sumTimeTotal">00:00</strong><span>合計時間</span></div>
+      <div><strong id="sumTimeAvg">00:00</strong><span>平均/問</span></div>
+    </div>
+  </section>
+
+  <section id="questionBrowserPanel" class="panel questionBrowser">
+    <div class="sectionHead">
+      <h2>全問題一覧</h2>
+      <div class="actions inline">
+        <button id="toggleQuestionBrowser" class="secondary">一覧を表示</button>
+      </div>
+    </div>
+    <div id="questionBrowserContent" class="hidden">
+      <p class="note">全問題の問題文・選択肢・正答・解説を確認できます。スマホで重くならないよう、50問ずつ表示します。</p>
+      <div class="browserControls">
+        <label>章で絞り込み
+          <select id="browseChapter"><option value="すべて">すべて</option></select>
+        </label>
+        <label>キーワード検索
+          <input id="browseSearch" type="search" placeholder="問題ID・本文・選択肢・解説を検索">
+        </label>
+        <button id="browseReset" class="ghost">条件クリア</button>
+      </div>
+      <div id="browserMeta" class="browserMeta">読み込み中...</div>
+      <div class="browserPager">
+        <button id="browsePrev" class="ghost">前へ</button>
+        <span id="browsePageInfo">1 / 1</span>
+        <button id="browseNext" class="ghost">次へ</button>
+      </div>
+      <div id="browserResults"></div>
+      <div class="browserPager">
+        <button id="browsePrevBottom" class="ghost">前へ</button>
+        <span id="browsePageInfoBottom">1 / 1</span>
+        <button id="browseNextBottom" class="ghost">次へ</button>
+      </div>
     </div>
   </section>
 
@@ -63,11 +128,214 @@
       </div>
     </div>
     <div id="logStats" class="logStats"></div>
-    <div class="tableWrap"><table id="logTable"><thead><tr><th>日時</th><th>問題No</th><th>章</th><th>結果</th><th>あなたの解答</th><th>正答</th></tr></thead><tbody></tbody></table></div>
+    <div class="tableWrap"><table id="logTable"><thead><tr><th>日時</th><th>問題No</th><th>章</th><th>時間</th><th>結果</th><th>あなたの解答</th><th>正答</th></tr></thead><tbody></tbody></table></div>
   </section>
 
 </main>
 <script src="data/data.js"></script>
 <script src="assets/app.js"></script>
+<script>
+(function(){
+  let questionStartedAt=0;
+  let timerId=null;
+  let browserPage=1;
+  const PAGE_SIZE=50;
+
+  function byId(id){return document.getElementById(id);}
+  function formatMs(ms){
+    ms=Math.max(0,Number(ms)||0);
+    const total=Math.floor(ms/1000);
+    const min=Math.floor(total/60);
+    const sec=total%60;
+    return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+  function readElapsedMs(rec){
+    if(!rec) return 0;
+    if(typeof rec.elapsedMs==='number') return rec.elapsedMs;
+    if(typeof rec.timeMs==='number') return rec.timeMs;
+    if(typeof rec.elapsedSec==='number') return rec.elapsedSec*1000;
+    if(typeof rec.timeSec==='number') return rec.timeSec*1000;
+    return 0;
+  }
+  function stopTimer(){
+    if(timerId){clearInterval(timerId); timerId=null;}
+  }
+  function updateTimer(){
+    const el=byId('questionTimer');
+    if(!el) return;
+    el.textContent=formatMs(Date.now()-questionStartedAt);
+  }
+  function startTimer(){
+    stopTimer();
+    questionStartedAt=Date.now();
+    updateTimer();
+    timerId=setInterval(updateTimer,250);
+  }
+
+  const originalShowQuestion=showQuestion;
+  showQuestion=function(){
+    originalShowQuestion();
+    startTimer();
+  };
+
+  answer=function(btn){
+    if(state.selected!==null) return;
+    stopTimer();
+    const elapsedMs=questionStartedAt?Date.now()-questionStartedAt:0;
+    const q=state.pool[state.idx];
+    const selectedIndex=Number(btn.dataset.i);
+    const chosen=q.shownOptions[selectedIndex];
+    const ok=chosen===q.answer;
+    state.selected=chosen;
+    if(ok) state.score++;
+
+    document.querySelectorAll('.option').forEach(b=>{
+      const val=b.textContent;
+      if(val===q.answer)b.classList.add('correct');
+      if(b===btn&&!ok)b.classList.add('wrong');
+      b.disabled=true;
+    });
+
+    const rec={
+      timestamp:new Date().toISOString(),
+      id:q.id,
+      chapter:q.chapter,
+      question:q.question,
+      selected:chosen,
+      selectedIndex,
+      answer:q.answer,
+      correct:ok,
+      explanation:q.explanation,
+      elapsedMs,
+      elapsedSec:Math.round(elapsedMs/100)/10
+    };
+    state.session.push(rec);
+    state.logs.answers.unshift(rec);
+    updateStats();
+    saveLogs();
+
+    const timer=byId('questionTimer');
+    if(timer) timer.textContent=formatMs(elapsedMs);
+    byId('feedback').classList.remove('hidden');
+    byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+(q.explanation||'なし');
+    byId('nextBtn').disabled=false;
+    renderLogs();
+  };
+
+  function applySummaryTime(){
+    const total=state.session.length;
+    const totalMs=state.session.reduce((sum,x)=>sum+readElapsedMs(x),0);
+    if(byId('sumTimeTotal')) byId('sumTimeTotal').textContent=formatMs(totalMs);
+    if(byId('sumTimeAvg')) byId('sumTimeAvg').textContent=total?formatMs(totalMs/total):'00:00';
+    if(state.logs&&state.logs.sessions&&state.logs.sessions[0]){
+      state.logs.sessions[0].totalTimeMs=totalMs;
+      state.logs.sessions[0].averageTimeMs=total?Math.round(totalMs/total):0;
+      saveLogs();
+    }
+  }
+
+  finish=function(){
+    stopTimer();
+    byId('quizPanel').classList.add('hidden');
+    byId('summaryPanel').classList.remove('hidden');
+    const total=state.session.length;
+    const correct=state.session.filter(x=>x.correct).length;
+    const totalMs=state.session.reduce((sum,x)=>sum+readElapsedMs(x),0);
+    byId('sumTotal').textContent=total;
+    byId('sumCorrect').textContent=correct;
+    byId('sumAccuracy').textContent=total?Math.round(correct/total*100)+'%':'0%';
+    if(byId('sumTimeTotal')) byId('sumTimeTotal').textContent=formatMs(totalMs);
+    if(byId('sumTimeAvg')) byId('sumTimeAvg').textContent=total?formatMs(totalMs/total):'00:00';
+    state.logs.sessions.unshift({
+      timestamp:new Date().toISOString(),
+      total,
+      correct,
+      incorrect:total-correct,
+      accuracy:total?correct/total:0,
+      totalTimeMs:totalMs,
+      averageTimeMs:total?Math.round(totalMs/total):0,
+      questionIds:state.session.map(x=>x.id)
+    });
+    saveLogs();
+    renderLogs();
+  };
+
+  byId('finishBtn').addEventListener('click',()=>{
+    stopTimer();
+    applySummaryTime();
+  });
+
+  renderLogs=function(){
+    if(!state.logs)return;
+    updateStats();
+    const s=state.logs.stats;
+    const answeredWithTime=state.logs.answers.filter(r=>readElapsedMs(r)>0);
+    const avgMs=answeredWithTime.length?answeredWithTime.reduce((sum,r)=>sum+readElapsedMs(r),0)/answeredWithTime.length:0;
+    byId('logStats').textContent=`累計回答数 ${s.total} / 累計正答数 ${s.correct} / 累計誤答数 ${s.incorrect} / 累計正答率 ${Math.round(s.accuracy*100)}% / 平均時間 ${formatMs(avgMs)}`;
+    const tbody=byId('logTable').querySelector('tbody');
+    tbody.innerHTML=state.logs.answers.slice(0,200).map(r=>`<tr><td>${new Date(r.timestamp).toLocaleString('ja-JP')}</td><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.chapter)}</td><td>${readElapsedMs(r)?formatMs(readElapsedMs(r)):'-'}</td><td class="${r.correct?'ok':'bad'}">${r.correct?'正解':'不正解'}</td><td>${escapeHtml(r.selected)}</td><td>${escapeHtml(r.answer)}</td></tr>`).join('');
+  };
+
+  function questionTextForSearch(q){
+    return [q.id,q.chapter,q.section,q.learningObjective,q.question,q.answer,q.explanation,...(q.options||[])].filter(Boolean).join(' ').toLowerCase();
+  }
+  function filteredQuestions(){
+    const chapter=byId('browseChapter')?.value||'すべて';
+    const keyword=(byId('browseSearch')?.value||'').trim().toLowerCase();
+    return state.questions.filter(q=>{
+      const chapterOk=chapter==='すべて'||q.chapter===chapter;
+      const keywordOk=!keyword||questionTextForSearch(q).includes(keyword);
+      return chapterOk&&keywordOk;
+    });
+  }
+  function renderQuestionBrowser(){
+    const results=byId('browserResults');
+    if(!results) return;
+    const qs=filteredQuestions();
+    const pages=Math.max(1,Math.ceil(qs.length/PAGE_SIZE));
+    browserPage=Math.min(Math.max(1,browserPage),pages);
+    const start=(browserPage-1)*PAGE_SIZE;
+    const slice=qs.slice(start,start+PAGE_SIZE);
+    byId('browserMeta').textContent=`${qs.length}問中 ${slice.length?start+1:0}-${start+slice.length}問を表示`;
+    byId('browsePageInfo').textContent=`${browserPage} / ${pages}`;
+    byId('browsePageInfoBottom').textContent=`${browserPage} / ${pages}`;
+    byId('browsePrev').disabled=byId('browsePrevBottom').disabled=browserPage<=1;
+    byId('browseNext').disabled=byId('browseNextBottom').disabled=browserPage>=pages;
+    results.innerHTML=slice.map((q,idx)=>{
+      const absoluteNo=start+idx+1;
+      const opts=(q.options||[]).map((o,i)=>`<li class="${o===q.answer?'correctAnswer':''}">${escapeHtml(String.fromCharCode(65+i)+'. '+o)}${o===q.answer?' <strong>（正答）</strong>':''}</li>`).join('');
+      const meta=[q.section,q.learningObjective,q.kLevel,q.questionType].filter(Boolean).map(escapeHtml).join(' / ');
+      return `<details class="questionCard"><summary>${absoluteNo}. ${escapeHtml(q.id)} / ${escapeHtml(q.chapter)}${meta?`<span class="miniTag">${meta}</span>`:''}</summary><div class="questionCardBody"><p>${escapeHtml(q.question)}</p><ol class="browseOptions">${opts}</ol><div class="browseExplanation"><strong>解説</strong><br>${escapeHtml(q.explanation||'なし')}</div></div></details>`;
+    }).join('') || '<p class="note">該当する問題がありません。</p>';
+  }
+  function setupQuestionBrowser(){
+    const panel=byId('questionBrowserContent');
+    if(!panel || !state.questions.length) return false;
+    const chapterSelect=byId('browseChapter');
+    const chapters=['すべて',...new Set(state.questions.map(q=>q.chapter))];
+    chapterSelect.innerHTML=chapters.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    byId('toggleQuestionBrowser').addEventListener('click',()=>{
+      const isHidden=panel.classList.toggle('hidden');
+      byId('toggleQuestionBrowser').textContent=isHidden?'一覧を表示':'一覧を隠す';
+      if(!isHidden) renderQuestionBrowser();
+    });
+    byId('browseChapter').addEventListener('change',()=>{browserPage=1;renderQuestionBrowser();});
+    byId('browseSearch').addEventListener('input',()=>{browserPage=1;renderQuestionBrowser();});
+    byId('browseReset').addEventListener('click',()=>{byId('browseChapter').value='すべて';byId('browseSearch').value='';browserPage=1;renderQuestionBrowser();});
+    const prev=()=>{browserPage--;renderQuestionBrowser();};
+    const next=()=>{browserPage++;renderQuestionBrowser();};
+    byId('browsePrev').addEventListener('click',prev);
+    byId('browsePrevBottom').addEventListener('click',prev);
+    byId('browseNext').addEventListener('click',next);
+    byId('browseNextBottom').addEventListener('click',next);
+    renderQuestionBrowser();
+    return true;
+  }
+
+  const browserReadyCheck=setInterval(()=>{
+    if(setupQuestionBrowser()) clearInterval(browserReadyCheck);
+  },200);
+})();
+</script>
 </body>
 </html>
