@@ -27,6 +27,30 @@
   .browseOptions li.correctAnswer{border-color:var(--ok);background:#eaf8f2;font-weight:800}
   .browseExplanation{white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
   .miniTag{display:inline-block;color:var(--muted);font-weight:800;font-size:12px;margin-left:8px}
+
+  .controlHint{display:block;color:var(--muted);font-size:12px;font-weight:700;line-height:1.4;margin-top:2px}
+  .questionTopLine{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:8px 0}
+  .questionTopLine .qid{margin:0;min-width:0}
+  .questionTopActions{display:flex;flex:0 1 auto;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .questionTopActions button{min-height:38px;padding:8px 12px;font-size:14px}
+  .flagControls{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f7f9fd;border:1px solid var(--line);border-radius:12px;padding:6px 8px;min-height:44px}
+  .flagControlsTop{min-height:38px;padding:5px 7px}
+  .flagControlsTop .flagLabel{font-size:12px}
+  .flagLabel{color:var(--muted);font-weight:800;font-size:13px;white-space:nowrap}
+  .flagCheck{--flag-color:#2457d6;--flag-bg:#eef3ff;--flag-checked:#2457d6;display:inline-flex;flex-direction:row;align-items:center;gap:5px;min-width:auto;color:var(--ink);font-weight:800;padding:4px 7px;border:1px solid var(--flag-color);border-radius:999px;background:var(--flag-bg);line-height:1.2;cursor:pointer}
+  .flagGreen{--flag-color:#1f9d55;--flag-bg:#e7f7ee;--flag-checked:#1f9d55}
+  .flagYellow{--flag-color:#d99a00;--flag-bg:#fff6d8;--flag-checked:#d99a00}
+  .flagRed{--flag-color:#d64545;--flag-bg:#ffeded;--flag-checked:#d64545}
+  .flagCheck input[type="checkbox"]{-webkit-appearance:none;appearance:none;display:grid;place-content:center;inline-size:18px;block-size:18px;width:18px;height:18px;min-inline-size:18px;min-block-size:18px;min-width:18px;min-height:18px;max-width:18px;max-height:18px;margin:0;padding:0;flex:0 0 18px;align-self:center;border:2px solid var(--flag-color);border-radius:5px;background:var(--flag-bg);box-shadow:0 0 0 1px rgba(255,255,255,.75) inset}
+  .flagCheck input[type="checkbox"]::before{content:"";width:10px;height:10px;transform:scale(0);transition:transform .12s ease-in-out;background:#fff;clip-path:polygon(14% 44%,0 60%,40% 100%,100% 20%,84% 6%,38% 68%)}
+  .flagCheck input[type="checkbox"]:checked{background:var(--flag-checked);border-color:var(--flag-checked)}
+  .flagCheck input[type="checkbox"]:checked::before{transform:scale(1)}
+  .flagCheck input[type="checkbox"]:focus-visible{outline:3px solid rgba(36,87,214,.30);outline-offset:2px}
+  .flagCheck:has(input:checked){box-shadow:0 0 0 2px rgba(36,87,214,.12) inset}
+  .flagGreen:has(input:checked){box-shadow:0 0 0 2px rgba(31,157,85,.22) inset}
+  .flagYellow:has(input:checked){box-shadow:0 0 0 2px rgba(217,154,0,.24) inset}
+  .flagRed:has(input:checked){box-shadow:0 0 0 2px rgba(214,69,69,.22) inset}
+
   @media(max-width:720px){
     .timerLine{display:block}.timerBadge{margin-top:8px;width:100%;justify-content:center}
     .questionBrowser .browserControls{grid-template-columns:1fr}
@@ -39,6 +63,17 @@
     .browseExplanation{padding:10px;line-height:1.7}
     .miniTag{display:block;margin:4px 0 0}
     #browseSearch,#browseChapter{width:100%;min-height:48px}
+
+    .questionTopLine{display:grid;grid-template-columns:1fr;gap:8px}
+    .questionTopActions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:8px}
+    .questionTopActions button{width:100%;min-height:44px;font-size:15px}
+    .questionTopActions .flagControls{grid-column:1 / -1}
+    .flagControls{width:100%;justify-content:space-between;gap:6px;padding:8px}
+    .flagControlsTop{padding:8px}
+    .flagLabel{width:100%;font-size:12px}
+    .flagControlsTop .flagLabel{width:auto;font-size:12px}
+    .flagCheck{flex:1 1 0;justify-content:center;padding:8px 6px}
+    .flagCheck input[type="checkbox"]{inline-size:18px;block-size:18px;width:18px;height:18px;min-width:18px;min-height:18px;max-width:18px;max-height:18px}
   }
 </style>
 </head>
@@ -64,6 +99,25 @@
     </label>
     <label class="check"><input id="shuffleQuestions" type="checkbox" checked> 問題をシャッフル</label>
     <label class="check"><input id="shuffleOptions" type="checkbox" checked> 選択肢をシャッフル</label>
+    <label>色チェック出題
+      <select id="flagFilter">
+        <option value="all">すべての問題</option>
+        <option value="unmarked">どの色にもチェックなし</option>
+        <option value="marked">いずれかの色にチェック済み</option>
+        <option value="green">緑にチェック済み</option>
+        <option value="yellow">黄色にチェック済み</option>
+        <option value="red">赤にチェック済み</option>
+      </select>
+      <span id="flagFilterHint" class="controlHint">色チェック条件: 読み込み中...</span>
+    </label>
+    <label>回答状況出題
+      <select id="answerStatusFilter">
+        <option value="all">すべての問題</option>
+        <option value="wrongEver">間違えた問題のみ</option>
+        <option value="unanswered">未回答の問題のみ</option>
+      </select>
+      <span id="answerStatusFilterHint" class="controlHint">回答状況条件: 読み込み中...</span>
+    </label>
     <button id="startBtn">学習開始</button>
   </section>
 
@@ -71,13 +125,31 @@
     <div class="progressLine"><span id="progressText"></span><span id="scoreText"></span></div>
     <div class="timerLine"><span id="questionTimeHint">この問題の経過時間</span><span class="timerBadge">⏱ <strong id="questionTimer">00:00</strong></span></div>
     <div class="bar"><div id="barFill"></div></div>
-    <p id="qid" class="qid"></p>
+    <div class="questionTopLine">
+      <p id="qid" class="qid"></p>
+      <div class="questionTopActions">
+        <button id="nextBtnTop" class="secondary" disabled>次へ</button>
+        <button id="finishBtnTop" class="ghost">終了してログへ</button>
+        <div class="questionFlagControls flagControls flagControlsTop" aria-label="この問題の色チェック（上部）">
+          <span class="flagLabel"></span>
+          <label class="flagCheck flagGreen"><input type="checkbox" data-flag="green"> </label>
+          <label class="flagCheck flagYellow"><input type="checkbox" data-flag="yellow"> </label>
+          <label class="flagCheck flagRed"><input type="checkbox" data-flag="red"> </label>
+        </div>
+      </div>
+    </div>
     <h2 id="questionText"></h2>
     <div id="options"></div>
     <div id="feedback" class="feedback hidden"></div>
     <div class="actions">
       <button id="nextBtn" class="secondary" disabled>次へ</button>
       <button id="finishBtn" class="ghost">終了してログへ</button>
+      <div class="questionFlagControls flagControls flagControlsBottom" aria-label="この問題の色チェック（下部）">
+        <span class="flagLabel">この問題の色チェック</span>
+        <label class="flagCheck flagGreen"><input type="checkbox" data-flag="green"> 緑</label>
+        <label class="flagCheck flagYellow"><input type="checkbox" data-flag="yellow"> 黄</label>
+        <label class="flagCheck flagRed"><input type="checkbox" data-flag="red"> 赤</label>
+      </div>
     </div>
   </section>
 
@@ -147,6 +219,9 @@
   let timerId=null;
   let browserPage=1;
   const PAGE_SIZE=50;
+  const FLAG_STORAGE_KEY='jstqbQuestionFlags_v1';
+  const FLAG_KEYS=['green','yellow','red'];
+  let questionFlags=readQuestionFlags();
 
   function byId(id){return document.getElementById(id);}
   function formatMs(ms){
@@ -163,6 +238,122 @@
     if(typeof rec.elapsedSec==='number') return rec.elapsedSec*1000;
     if(typeof rec.timeSec==='number') return rec.timeSec*1000;
     return 0;
+  }
+
+  function readQuestionFlags(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(FLAG_STORAGE_KEY)||'{}');
+      return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
+    }catch(e){
+      return {};
+    }
+  }
+  function saveQuestionFlags(){
+    try{localStorage.setItem(FLAG_STORAGE_KEY,JSON.stringify(questionFlags));}
+    catch(e){console.warn('Failed to save question flags.',e);}
+  }
+  function normalizeFlags(flags){
+    return {
+      green:!!(flags&&flags.green),
+      yellow:!!(flags&&flags.yellow),
+      red:!!(flags&&flags.red)
+    };
+  }
+  function flagsForQuestion(id){
+    return normalizeFlags(questionFlags[String(id)]);
+  }
+  function writeFlagsForQuestion(id,flags){
+    if(!id) return;
+    const normalized=normalizeFlags(flags);
+    const hasAny=FLAG_KEYS.some(k=>normalized[k]);
+    if(hasAny){
+      questionFlags[String(id)]={...normalized,updatedAt:new Date().toISOString()};
+    }else{
+      delete questionFlags[String(id)];
+    }
+    saveQuestionFlags();
+    updateFlagFilterHint();
+  }
+  function questionMatchesFlagFilter(q,filter){
+    const flags=flagsForQuestion(q.id);
+    const hasAny=FLAG_KEYS.some(k=>flags[k]);
+    if(filter==='green'||filter==='yellow'||filter==='red') return !!flags[filter];
+    if(filter==='marked') return hasAny;
+    if(filter==='unmarked') return !hasAny;
+    return true;
+  }
+  function statsForQuestion(q){
+    if(state.logs) updateStats();
+    return state.logs&&state.logs.questionStats?state.logs.questionStats[String(q.id)]||null:null;
+  }
+  function questionMatchesAnswerStatusFilter(q,filter){
+    const stat=statsForQuestion(q);
+    const answered=!!(stat&&Number(stat.answered)>0);
+    if(filter==='wrongEver') return !!(stat&&Number(stat.incorrect)>0);
+    if(filter==='unanswered') return !answered;
+    return true;
+  }
+  function questionsForChapter(){
+    const chap=byId('chapterSelect')?.value||ALL_CHAPTERS;
+    return chap===ALL_CHAPTERS?state.questions:state.questions.filter(q=>q.chapter===chap);
+  }
+  function questionsForCurrentFilters(){
+    const flagFilter=byId('flagFilter')?.value||'all';
+    const answerStatusFilter=byId('answerStatusFilter')?.value||'all';
+    return questionsForChapter().filter(q=>questionMatchesFlagFilter(q,flagFilter)&&questionMatchesAnswerStatusFilter(q,answerStatusFilter));
+  }
+  function updateFlagFilterHint(){
+    const flagHint=byId('flagFilterHint');
+    const statusHint=byId('answerStatusFilterHint');
+    if(!state.questions.length) return;
+    const chapterQuestions=questionsForChapter();
+    const flagFilter=byId('flagFilter')?.value||'all';
+    const answerStatusFilter=byId('answerStatusFilter')?.value||'all';
+    const flagCount=chapterQuestions.filter(q=>questionMatchesFlagFilter(q,flagFilter)).length;
+    const statusCount=chapterQuestions.filter(q=>questionMatchesAnswerStatusFilter(q,answerStatusFilter)).length;
+    const combinedCount=questionsForCurrentFilters().length;
+    if(flagHint) flagHint.textContent=`色チェック条件: ${flagCount}問 / 全条件: ${combinedCount}問`;
+    if(statusHint) statusHint.textContent=`回答状況条件: ${statusCount}問 / 全条件: ${combinedCount}問`;
+    const limit=byId('questionLimit');
+    if(limit&&combinedCount>0){
+      limit.max=combinedCount;
+      if(Number(limit.value)>combinedCount) limit.value=combinedCount;
+    }
+  }
+  function syncTopNextButton(){
+    const top=byId('nextBtnTop');
+    const bottom=byId('nextBtn');
+    if(top&&bottom) top.disabled=bottom.disabled;
+  }
+  function syncFlagCheckboxesForCurrentQuestion(){
+    const q=state.pool[state.idx];
+    if(!q) return;
+    const flags=flagsForQuestion(q.id);
+    for(const key of FLAG_KEYS){
+      document.querySelectorAll(`.questionFlagControls input[data-flag="${key}"]`).forEach(input=>{
+        input.checked=!!flags[key];
+      });
+    }
+  }
+  async function startWithFlagFilter(){
+    await loadSelectedQuestions();
+    let qs=questionsForCurrentFilters();
+    if(!qs.length){
+      alert('現在の章・色チェック・回答状況条件に一致する問題がありません。');
+      updateFlagFilterHint();
+      return;
+    }
+    if(byId('shuffleQuestions').checked) qs=shuffle(qs);
+    const limit=Math.max(1,Math.min(Number(byId('questionLimit').value)||10,qs.length));
+    state.pool=qs.slice(0,limit).map(q=>({...q, shownOptions:byId('shuffleOptions').checked?shuffle(q.options):q.options}));
+    state.idx=0;
+    state.score=0;
+    state.session=[];
+    state.selected=null;
+    state.sessionId=`s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+    byId('summaryPanel').classList.add('hidden');
+    byId('quizPanel').classList.remove('hidden');
+    showQuestion();
   }
   function stopTimer(){
     if(timerId){clearInterval(timerId); timerId=null;}
@@ -182,6 +373,8 @@
   const originalShowQuestion=showQuestion;
   showQuestion=function(){
     originalShowQuestion();
+    syncTopNextButton();
+    syncFlagCheckboxesForCurrentQuestion();
     startTimer();
   };
 
@@ -211,6 +404,7 @@
     byId('feedback').classList.remove('hidden');
     byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+(q.explanation||'なし');
     byId('nextBtn').disabled=false;
+    syncTopNextButton();
     renderLogs();
   };
 
@@ -256,6 +450,30 @@
     stopTimer();
     applySummaryTime();
   });
+  byId('nextBtnTop')?.addEventListener('click',next);
+  byId('finishBtnTop')?.addEventListener('click',()=>{
+    stopTimer();
+    finish();
+  });
+  byId('startBtn')?.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    startWithFlagFilter();
+  },true);
+  byId('flagFilter')?.addEventListener('change',updateFlagFilterHint);
+  byId('answerStatusFilter')?.addEventListener('change',updateFlagFilterHint);
+  byId('chapterSelect')?.addEventListener('change',()=>setTimeout(updateFlagFilterHint,0));
+  document.querySelectorAll('.questionFlagControls input[data-flag]').forEach(input=>{
+    input.addEventListener('change',()=>{
+      const q=state.pool[state.idx];
+      if(!q) return;
+      const flags=flagsForQuestion(q.id);
+      flags[input.dataset.flag]=input.checked;
+      writeFlagsForQuestion(q.id,flags);
+      syncFlagCheckboxesForCurrentQuestion();
+    });
+  });
+  setTimeout(updateFlagFilterHint,0);
 
   renderLogs=function(){
     if(!state.logs)return;
@@ -266,6 +484,7 @@
     byId('logStats').textContent=`累計回答数 ${s.total} / 累計正答数 ${s.correct} / 累計誤答数 ${s.incorrect} / 累計正答率 ${Math.round(s.accuracy*100)}% / 平均時間 ${formatMs(avgMs)}`;
     const tbody=byId('logTable').querySelector('tbody');
     tbody.innerHTML=state.logs.answers.slice(0,200).map(r=>`<tr><td>${new Date(r.timestamp).toLocaleString('ja-JP')}</td><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.chapter)}</td><td>${readElapsedMs(r)?formatMs(readElapsedMs(r)):'-'}</td><td class="${r.correct?'ok':'bad'}">${r.correct?'正解':'不正解'}</td><td>${escapeHtml(selectedTextForLog(r))}</td><td>${escapeHtml(answerTextForLog(r))}</td></tr>`).join('');
+    updateFlagFilterHint();
   };
 
   function questionTextForSearch(q){
@@ -325,7 +544,10 @@
   }
 
   const browserReadyCheck=setInterval(()=>{
-    if(setupQuestionBrowser()) clearInterval(browserReadyCheck);
+    if(setupQuestionBrowser()){
+      updateFlagFilterHint();
+      clearInterval(browserReadyCheck);
+    }
   },200);
 })();
 </script>
