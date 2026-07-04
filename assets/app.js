@@ -181,9 +181,25 @@ function recordAnswer(rec){
  const compact=toCompactAnswer(rec);
  if(!compact) return;
  state.session.push(compact);
+ if(!state.logs) state.logs=emptyLogs();
+ if(!Array.isArray(state.logs.answers)) state.logs.answers=[];
  state.logs.answers.unshift(compact);
  updateStats();
  saveLogs();
+}
+function recordAnswerForCurrentQuestion(rec){
+ const beforeSessionLength=state.session.length;
+ try{
+  recordAnswer(rec);
+ }catch(e){
+  console.error('Failed to record answer.',e);
+  try{
+   const compact=toCompactAnswer(rec);
+   if(compact&&state.session.length===beforeSessionLength) state.session.push(compact);
+  }catch(innerError){
+   console.error('Failed to keep answer in the current session.',innerError);
+  }
+ }
 }
 function selectedTextForLog(r){
  const q=findQuestionById(r.id);
@@ -237,7 +253,7 @@ function answer(btn){
  state.selected=chosen;
  if(ok) state.score++;
  document.querySelectorAll('.option').forEach(b=>{const val=b.textContent; if(val===q.answer)b.classList.add('correct'); if(b===btn&&!ok)b.classList.add('wrong'); b.disabled=true;});
- recordAnswer(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,0));
+ recordAnswerForCurrentQuestion(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,0));
  $('feedback').classList.remove('hidden'); $('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n正答: '+q.answer+'\n\n解説:\n'+(q.explanation||'なし');
  $('nextBtn').disabled=false; renderLogs();
 }

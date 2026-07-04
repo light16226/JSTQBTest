@@ -204,7 +204,7 @@
       b.disabled=true;
     });
 
-    recordAnswer(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,elapsedMs));
+    recordAnswerForCurrentQuestion(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,elapsedMs));
 
     const timer=byId('questionTimer');
     if(timer) timer.textContent=formatMs(elapsedMs);
