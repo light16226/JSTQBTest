@@ -1,7 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "sessions": [],
   "answers": [],
+  "questionStats": {},
   "stats": {
     "total": 0,
     "correct": 0,

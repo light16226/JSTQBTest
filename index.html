@@ -40,7 +40,7 @@
   <div>
     <p class="eyebrow">JSTQB</p>
     <h1>資格試験問題集 学習サイト</h1>
-    <p>問題は <code>data/questions.json</code>、解答ログはブラウザ保存＋JSON出力に対応しています。</p>
+    <p>問題は <code>data/questions_1.json</code>〜<code>data/questions_6.json</code>、解答ログはブラウザ保存＋JSON出力に対応しています。</p>
   </div>
   <div class="heroStats">
     <span id="totalQuestions">0</span><small>問題</small>
@@ -183,8 +183,9 @@
     stopTimer();
     const elapsedMs=questionStartedAt?Date.now()-questionStartedAt:0;
     const q=state.pool[state.idx];
-    const selectedIndex=Number(btn.dataset.i);
-    const chosen=q.shownOptions[selectedIndex];
+    const shownSelectedIndex=Number(btn.dataset.i);
+    const chosen=q.shownOptions[shownSelectedIndex];
+    const selectedIndex=q.options.indexOf(chosen);
     const ok=chosen===q.answer;
     state.selected=chosen;
     if(ok) state.score++;
@@ -196,23 +197,7 @@
       b.disabled=true;
     });
 
-    const rec={
-      timestamp:new Date().toISOString(),
-      id:q.id,
-      chapter:q.chapter,
-      question:q.question,
-      selected:chosen,
-      selectedIndex,
-      answer:q.answer,
-      correct:ok,
-      explanation:q.explanation,
-      elapsedMs,
-      elapsedSec:Math.round(elapsedMs/100)/10
-    };
-    state.session.push(rec);
-    state.logs.answers.unshift(rec);
-    updateStats();
-    saveLogs();
+    recordAnswer(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,elapsedMs));
 
     const timer=byId('questionTimer');
     if(timer) timer.textContent=formatMs(elapsedMs);
@@ -273,7 +258,7 @@
     const avgMs=answeredWithTime.length?answeredWithTime.reduce((sum,r)=>sum+readElapsedMs(r),0)/answeredWithTime.length:0;
     byId('logStats').textContent=`累計回答数 ${s.total} / 累計正答数 ${s.correct} / 累計誤答数 ${s.incorrect} / 累計正答率 ${Math.round(s.accuracy*100)}% / 平均時間 ${formatMs(avgMs)}`;
     const tbody=byId('logTable').querySelector('tbody');
-    tbody.innerHTML=state.logs.answers.slice(0,200).map(r=>`<tr><td>${new Date(r.timestamp).toLocaleString('ja-JP')}</td><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.chapter)}</td><td>${readElapsedMs(r)?formatMs(readElapsedMs(r)):'-'}</td><td class="${r.correct?'ok':'bad'}">${r.correct?'正解':'不正解'}</td><td>${escapeHtml(r.selected)}</td><td>${escapeHtml(r.answer)}</td></tr>`).join('');
+    tbody.innerHTML=state.logs.answers.slice(0,200).map(r=>`<tr><td>${new Date(r.timestamp).toLocaleString('ja-JP')}</td><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.chapter)}</td><td>${readElapsedMs(r)?formatMs(readElapsedMs(r)):'-'}</td><td class="${r.correct?'ok':'bad'}">${r.correct?'正解':'不正解'}</td><td>${escapeHtml(selectedTextForLog(r))}</td><td>${escapeHtml(answerTextForLog(r))}</td></tr>`).join('');
   };
 
   function questionTextForSearch(q){
