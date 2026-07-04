@@ -145,10 +145,21 @@ label {
   padding: 6px 4px;
 }
 
-.check input {
+.check input[type="checkbox"] {
   inline-size: 20px;
   block-size: 20px;
-  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  min-inline-size: 20px;
+  min-block-size: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 20px;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 20px;
+  align-self: center;
+  accent-color: var(--brand);
 }
 
 select,
@@ -438,7 +449,7 @@ code {
 
   .controls label,
   .controls select,
-  .controls input,
+  .controls input:not([type="checkbox"]),
   .controls button {
     width: 100%;
   }
