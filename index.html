@@ -146,9 +146,9 @@
       <button id="finishBtn" class="ghost">終了してログへ</button>
       <div class="questionFlagControls flagControls flagControlsBottom" aria-label="この問題の色チェック（下部）">
         <span class="flagLabel">この問題の色チェック</span>
-        <label class="flagCheck flagGreen"><input type="checkbox" data-flag="green"> 緑</label>
-        <label class="flagCheck flagYellow"><input type="checkbox" data-flag="yellow"> 黄</label>
-        <label class="flagCheck flagRed"><input type="checkbox" data-flag="red"> 赤</label>
+        <label class="flagCheck flagGreen"><input type="checkbox" data-flag="green"> </label>
+        <label class="flagCheck flagYellow"><input type="checkbox" data-flag="yellow"> </label>
+        <label class="flagCheck flagRed"><input type="checkbox" data-flag="red"> </label>
       </div>
     </div>
   </section>
@@ -369,14 +369,22 @@
     updateTimer();
     timerId=setInterval(updateTimer,250);
   }
-  function scrollToCurrentQuestionTop(){
+
+  function scrollToProgressText(){
+    const quizPanel=byId('quizPanel');
+    const progressText=byId('progressText');
+    const target=progressText?.closest('.progressLine')||progressText;
+    if(!quizPanel||!target||quizPanel.classList.contains('hidden')) return;
     requestAnimationFrame(()=>{
-      const quizPanel=byId('quizPanel');
-      const target=byId('qid');
-      if(!quizPanel||quizPanel.classList.contains('hidden')||!target) return;
-      target.scrollIntoView({block:'start',behavior:'auto'});
+      target.scrollIntoView({behavior:'smooth',block:'start'});
     });
   }
+
+  const originalNext=next;
+  next=function(){
+    originalNext();
+    scrollToProgressText();
+  };
 
   const originalShowQuestion=showQuestion;
   showQuestion=function(){
@@ -410,7 +418,7 @@
     const timer=byId('questionTimer');
     if(timer) timer.textContent=formatMs(elapsedMs);
     byId('feedback').classList.remove('hidden');
-    byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+(q.explanation||'なし');
+    byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+explanationWithSource(q);
     byId('nextBtn').disabled=false;
     syncTopNextButton();
     renderLogs();
@@ -458,9 +466,8 @@
     stopTimer();
     applySummaryTime();
   });
+  byId('nextBtn')?.addEventListener('click',scrollToProgressText);
   byId('nextBtnTop')?.addEventListener('click',next);
-  byId('nextBtn')?.addEventListener('click',scrollToCurrentQuestionTop);
-  byId('nextBtnTop')?.addEventListener('click',scrollToCurrentQuestionTop);
   byId('finishBtnTop')?.addEventListener('click',()=>{
     stopTimer();
     finish();
@@ -526,7 +533,7 @@
       const absoluteNo=start+idx+1;
       const opts=(q.options||[]).map((o,i)=>`<li class="${o===q.answer?'correctAnswer':''}">${escapeHtml(String.fromCharCode(65+i)+'. '+o)}${o===q.answer?' <strong>（正答）</strong>':''}</li>`).join('');
       const meta=[q.section,q.learningObjective,q.kLevel,q.questionType].filter(Boolean).map(escapeHtml).join(' / ');
-      return `<details class="questionCard"><summary>${absoluteNo}. ${escapeHtml(q.id)} / ${escapeHtml(q.chapter)}${meta?`<span class="miniTag">${meta}</span>`:''}</summary><div class="questionCardBody"><p>${escapeHtml(q.question)}</p><ol class="browseOptions">${opts}</ol><div class="browseExplanation"><strong>解説</strong><br>${escapeHtml(q.explanation||'なし')}</div></div></details>`;
+      return `<details class="questionCard"><summary>${absoluteNo}. ${escapeHtml(q.id)} / ${escapeHtml(q.chapter)}${meta?`<span class="miniTag">${meta}</span>`:''}</summary><div class="questionCardBody"><p>${escapeHtml(q.question)}</p><ol class="browseOptions">${opts}</ol><div class="browseExplanation"><strong>解説</strong><br>${escapeHtml(explanationWithSource(q))}</div></div></details>`;
     }).join('') || '<p class="note">該当する問題がありません。</p>';
   }
   function setupQuestionBrowser(){
