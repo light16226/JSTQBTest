@@ -212,7 +212,7 @@
 
 </main>
 <script src="data/data.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=20260707-fix1"></script>
 <script>
 (function(){
   let questionStartedAt=0;
@@ -238,6 +238,51 @@
     if(typeof rec.elapsedSec==='number') return rec.elapsedSec*1000;
     if(typeof rec.timeSec==='number') return rec.timeSec*1000;
     return 0;
+  }
+
+  function safeExplanationWithSource(q){
+    try{
+      if(typeof explanationWithSource==='function') return explanationWithSource(q);
+    }catch(e){
+      console.error('Failed to build explanation text.',e);
+    }
+    const exp=String(q&&q.explanation||'なし');
+    const basis=String(q&&q.sourceBasis||'').trim();
+    if(!basis) return exp;
+    if(/\n根拠:\s*$/.test(exp)||/根拠:\s*$/.test(exp)) return exp+basis;
+    return exp+'\n根拠: '+basis;
+  }
+
+  function safeRecordAnswer(q,selectedIndex,shownSelectedIndex,ok,elapsedMs){
+    let rec=null;
+    try{
+      if(typeof makeAnswerLogRecord==='function'){
+        rec=makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,elapsedMs);
+      }else{
+        rec={
+          timestamp:new Date().toISOString(),
+          id:q.id,
+          chapter:q.chapter,
+          selectedIndex:selectedIndex>=0?selectedIndex:null,
+          shownSelectedIndex,
+          correct:ok,
+          elapsedMs:Math.round(elapsedMs||0),
+          sessionId:state.sessionId
+        };
+      }
+      if(typeof recordAnswerForCurrentQuestion==='function'){
+        recordAnswerForCurrentQuestion(rec);
+      }else if(state&&Array.isArray(state.session)){
+        state.session.push(rec);
+      }
+    }catch(e){
+      console.error('Failed to record answer, but continuing quiz display.',e);
+      try{
+        if(rec&&state&&Array.isArray(state.session)&&!state.session.includes(rec)) state.session.push(rec);
+      }catch(innerError){
+        console.error('Failed to keep answer in the current session.',innerError);
+      }
+    }
   }
 
   function readQuestionFlags(){
@@ -413,15 +458,16 @@
       b.disabled=true;
     });
 
-    recordAnswerForCurrentQuestion(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,elapsedMs));
+    safeRecordAnswer(q,selectedIndex,shownSelectedIndex,ok,elapsedMs);
 
     const timer=byId('questionTimer');
     if(timer) timer.textContent=formatMs(elapsedMs);
     byId('feedback').classList.remove('hidden');
-    byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+explanationWithSource(q);
+    byId('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n所要時間: '+formatMs(elapsedMs)+'\n\n正答: '+q.answer+'\n\n解説:\n'+safeExplanationWithSource(q);
     byId('nextBtn').disabled=false;
     syncTopNextButton();
-    renderLogs();
+    try{renderLogs();}
+    catch(e){console.error('Failed to render logs, but continuing quiz display.',e);}
   };
 
   function applySummaryTime(){
@@ -533,7 +579,7 @@
       const absoluteNo=start+idx+1;
       const opts=(q.options||[]).map((o,i)=>`<li class="${o===q.answer?'correctAnswer':''}">${escapeHtml(String.fromCharCode(65+i)+'. '+o)}${o===q.answer?' <strong>（正答）</strong>':''}</li>`).join('');
       const meta=[q.section,q.learningObjective,q.kLevel,q.questionType].filter(Boolean).map(escapeHtml).join(' / ');
-      return `<details class="questionCard"><summary>${absoluteNo}. ${escapeHtml(q.id)} / ${escapeHtml(q.chapter)}${meta?`<span class="miniTag">${meta}</span>`:''}</summary><div class="questionCardBody"><p>${escapeHtml(q.question)}</p><ol class="browseOptions">${opts}</ol><div class="browseExplanation"><strong>解説</strong><br>${escapeHtml(explanationWithSource(q))}</div></div></details>`;
+      return `<details class="questionCard"><summary>${absoluteNo}. ${escapeHtml(q.id)} / ${escapeHtml(q.chapter)}${meta?`<span class="miniTag">${meta}</span>`:''}</summary><div class="questionCardBody"><p>${escapeHtml(q.question)}</p><ol class="browseOptions">${opts}</ol><div class="browseExplanation"><strong>解説</strong><br>${escapeHtml(safeExplanationWithSource(q))}</div></div></details>`;
     }).join('') || '<p class="note">該当する問題がありません。</p>';
   }
   function setupQuestionBrowser(){
