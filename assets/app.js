@@ -14,6 +14,14 @@ const state={questions:[],pool:[],idx:0,score:0,session:[],sessionId:null,logs:n
 const $=id=>document.getElementById(id);
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function explanationWithSource(q){
+ const exp=String(q?.explanation||'なし');
+ const basis=String(q?.sourceBasis||'').trim();
+ if(!basis) return exp;
+ if(/\n根拠:\s*$/.test(exp)) return exp+basis;
+ if(/根拠:\s*$/.test(exp)) return exp+basis;
+ return exp+'\n根拠: '+basis;
+}
 function selectedSources(){
  const chap=$('chapterSelect').value;
  if(chap===ALL_CHAPTERS) return QUESTION_SOURCES;
@@ -254,7 +262,7 @@ function answer(btn){
  if(ok) state.score++;
  document.querySelectorAll('.option').forEach(b=>{const val=b.textContent; if(val===q.answer)b.classList.add('correct'); if(b===btn&&!ok)b.classList.add('wrong'); b.disabled=true;});
  recordAnswerForCurrentQuestion(makeAnswerLogRecord(q,selectedIndex>=0?selectedIndex:null,shownSelectedIndex,ok,0));
- $('feedback').classList.remove('hidden'); $('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n正答: '+q.answer+'\n\n解説:\n'+(q.explanation||'なし');
+ $('feedback').classList.remove('hidden'); $('feedback').textContent=(ok?'正解です。':'不正解です。')+'\n\n正答: '+q.answer+'\n\n解説:\n'+explanationWithSource(q);
  $('nextBtn').disabled=false; renderLogs();
 }
 function next(){ if(state.idx<state.pool.length-1){state.idx++; showQuestion();} else finish(); }

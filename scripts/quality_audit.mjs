@@ -3,6 +3,14 @@ import crypto from 'node:crypto';
 
 const QUESTIONS_PATH = 'data/questions.json';
 const DATA_JS_PATH = 'data/data.js';
+const CHAPTER_TARGETS = new Map([
+  ['1章', 260],
+  ['2章', 300],
+  ['3章', 220],
+  ['4章', 520],
+  ['5章', 500],
+  ['6章', 200],
+]);
 
 const ALLOWED_TYPES = new Set([
   'definition',
@@ -72,6 +80,21 @@ function structureErrors(data, embedded) {
   const qs = data.questions;
   if (!Array.isArray(qs)) errors.push('questions is not an array');
   if (data.meta?.questionCount !== qs.length) errors.push(`meta.questionCount ${data.meta?.questionCount} != actual ${qs.length}`);
+  if (qs.length !== 2000) errors.push(`question count must be 2000: ${qs.length}`);
+  const chapterCounts = countBy(qs.map((q) => q.chapter));
+  for (const [chapter, expected] of CHAPTER_TARGETS.entries()) {
+    if ((chapterCounts[chapter] ?? 0) !== expected) errors.push(`${chapter}: expected ${expected}, got ${chapterCounts[chapter] ?? 0}`);
+    const chapterNo = chapter[0];
+    const chapterPath = `data/questions_${chapterNo}.json`;
+    try {
+      const chapterData = JSON.parse(fs.readFileSync(chapterPath, 'utf8'));
+      const expectedQuestions = qs.filter((q) => q.chapter === chapter);
+      if (JSON.stringify(chapterData.questions) !== JSON.stringify(expectedQuestions)) errors.push(`${chapterPath} is not synchronized`);
+      if (chapterData.meta?.questionCount !== expectedQuestions.length) errors.push(`${chapterPath} meta.questionCount mismatch`);
+    } catch (error) {
+      errors.push(`${chapterPath} could not be parsed: ${error.message}`);
+    }
+  }
   const ids = new Set();
   for (const q of qs) {
     if (ids.has(q.id)) errors.push(`duplicate id: ${q.id}`);
@@ -100,6 +123,9 @@ function audit() {
   const optionAnswerTop = topEntries(optionAnswerKeys, 10);
   const duplicateGroups = topEntries(optionAnswerKeys, qs.length).filter(([, n]) => n > 1);
   const answerCounts = topEntries(qs.map((q) => q.answer), 10);
+  const questionTextGroups = topEntries(qs.map((q) => q.question), qs.length).filter(([, n]) => n > 1);
+  const explanationGroups = topEntries(qs.map((q) => q.explanation), qs.length).filter(([, n]) => n > 1);
+  const residues = ['日数欄I', '欄I', '判断の手掛かり', '誤答の主なずれ', 'という条件で進める', 'とみなして扱う', 'という前提で進める'];
   let answerLongest = 0;
   for (const q of qs) {
     const lengths = q.options.map((o) => o.length);
@@ -124,8 +150,11 @@ function audit() {
       duplicateOptionAnswerGroups: duplicateGroups.length,
       duplicateOptionAnswerItems: duplicateGroups.reduce((sum, [, n]) => sum + n, 0),
       duplicateOptionAnswerMaxGroupSize: duplicateGroups[0]?.[1] ?? 1,
+      duplicateQuestionTextGroups: questionTextGroups.length,
+      duplicateExplanationGroups: explanationGroups.length,
       topRepeatedAnswers: answerCounts,
       assertiveWordsOnlyWrongSide: qs.filter(wrongSideAssertive).length,
+      residueCounts: Object.fromEntries(residues.map((p) => [p, qs.filter((q) => JSON.stringify(q).includes(p)).length])),
       absurdPatternCounts: Object.fromEntries(ABSURD_PATTERNS.map((p) => [p, qs.filter((q) => q.options.some((o) => o.includes(p)) || q.explanation.includes(p)).length])),
       calculationWithoutNumber: qs.filter((q) => q.questionType === 'calculation' && !hasNumber(q.question + q.options.join('') + q.explanation)).length,
       scenarioWeakContext: qs.filter((q) => q.questionType === 'scenario' && !looksLikeScenarioQuestion(q)).length,

@@ -27,21 +27,21 @@ QUESTION_TYPES = [
     "scenario",
     "calculation",
     "misconception",
-    "best_choice",
-    "incorrect_choice",
+    "negative",
+    "example",
 ]
 
 GLOBAL_DISTRACTORS = [
-    "テスト担当者の経験だけを根拠にして、計画や根拠を残さず判断する",
-    "欠陥を見つけるよりも、実行したテスト件数を常に最大化する",
-    "すべての欠陥をテストだけで取り除けるとみなし、レビューを省略する",
-    "開発完了後までテスト活動を開始せず、早期のフィードバックを避ける",
-    "利用者やビジネス側の期待を確認せず、内部実装だけを基準にする",
-    "自動化すればテスト設計や判断が不要になると考える",
-    "リスクや目的に関係なく、すべての項目を同じ深さでテストする",
-    "テスト結果を記録せず、後から追跡できない状態にする",
-    "不具合の有無だけを報告し、根拠や影響を示さない",
-    "合格したテストは将来の変更の影響を受けないとみなす",
+    "経験則を根拠にして、計画や判断理由を残さず進める",
+    "欠陥発見の目的を外し、実行件数の多さを主な判断材料にする",
+    "レビューや分析を省き、実行テストのみで品質を判断する",
+    "開発終盤まで確認活動を遅らせ、早期のフィードバックを得ない",
+    "利用者やビジネス側の期待を確認せず、内部実装を基準にする",
+    "自動化を導入すればテスト設計や人の判断を省けると考える",
+    "リスクや目的を考慮せず、全項目を同じ深さで確認する",
+    "テスト結果を記録せず、後から追跡しにくい状態にする",
+    "不具合の有無のみを報告し、根拠や影響を示さない",
+    "合格済みテストは変更の影響を受けにくいと扱う",
 ]
 
 SCENARIOS = [
@@ -565,13 +565,127 @@ def clean(s):
     return " ".join(str(s).split())
 
 
+TELL_REPLACEMENTS = {
+    "よりも": "ではなく",
+    "すべての": "全範囲の",
+    "すべて": "全範囲",
+    "全て": "全範囲",
+    "常に": "一律に",
+    "だけを": "のみを",
+    "だけで": "のみで",
+    "だけに": "のみに",
+    "だけ": "に限って",
+    "必ず": "例外なく",
+    "考慮しなくてよい": "考慮しない",
+    "保守しなくてよい": "保守を省けると考える",
+    "しなくてよい": "しない",
+    "不要な": "余分な",
+    "無視して": "考慮せず",
+    "無視する": "考慮しない",
+    "不要になる": "省けると考える",
+    "不要である": "省けると考える",
+    "不要": "省略可能",
+    "関係しない": "考慮しない",
+    "関係なく": "考慮せず",
+    "使わない": "使用しない",
+    "できない": "困難である",
+    "という条件で進める": "という判断を置く",
+    "という前提で進める": "という判断を置く",
+    "とみなして扱う": "として扱う",
+    "という扱いにする": "として扱う",
+    "という方針で計画する": "として計画する",
+}
+
+
+QUESTION_FOCI = [
+    "目的と成果の関係",
+    "対象と責務の分け方",
+    "判断根拠の残し方",
+    "リスクへの対応",
+    "関係者への説明",
+    "変更時の影響",
+    "実務での使い分け",
+    "確認範囲の決め方",
+    "成果物の扱い",
+    "制約下での判断",
+]
+
+
+OPTION_CONTEXTS = [
+    "リリース判断で使う",
+    "変更影響を説明する",
+    "関係者の合意に使う",
+    "テスト範囲を決める",
+    "欠陥分析に使う",
+    "回帰確認に使う",
+    "監査証跡として残す",
+    "反復開発で見直す",
+    "受け入れ判断に使う",
+    "リスク対応を決める",
+    "計画との差異を見る",
+    "運用後に見直す",
+]
+
+ROLE_CONTEXTS = [
+    "テストリーダー",
+    "開発担当者",
+    "ビジネス代表",
+    "レビュー担当者",
+    "品質保証担当者",
+    "運用担当者",
+    "自動化担当者",
+]
+
+
+EXPLANATION_OPENERS = [
+    "{topic}では、設問の対象と目的を分けて読む必要がある。",
+    "{topic}の問題では、活動の成果がどの判断に使われるかを確認する。",
+    "{topic}では、リスク、制約、成果物の関係を取り違えないことが重要である。",
+    "{topic}を実務で扱う場合、正答は根拠を残せる行動になっている。",
+    "{topic}では、期待する効果と過大な期待を区別する必要がある。",
+]
+
+
+def remove_tell_phrases(text):
+    text = clean(text)
+    for old, new in TELL_REPLACEMENTS.items():
+        text = text.replace(old, new)
+    text = text.replace("。そのうえで", "し、")
+    text = text.replace("そのうえで", "あわせて")
+    return clean(text)
+
+
+def focus_for(n):
+    return QUESTION_FOCI[n % len(QUESTION_FOCI)]
+
+
+def scenario_text(spec, n):
+    scenario = SCENARIOS[n % len(SCENARIOS)]
+    detail = CONTEXT_DETAILS[(n // len(SCENARIOS)) % len(CONTEXT_DETAILS)]
+    return f"{scenario}。{detail}として、{spec['title']}に基づく判断が必要である"
+
+
+def option_variant(option, spec, n, position, qtype, is_answer):
+    option = remove_tell_phrases(option)
+    context = OPTION_CONTEXTS[(n + position + len(spec["section"])) % len(OPTION_CONTEXTS)]
+    focus = QUESTION_FOCI[(n + position) % len(QUESTION_FOCI)]
+    role = ROLE_CONTEXTS[(n + position + len(spec["lo"])) % len(ROLE_CONTEXTS)]
+    templates = [
+        "{option}。{role}が{spec_title}の{focus}として検討する",
+        "{option}。{context}場面で{spec_title}の{focus}を比較する",
+        "{option}。{role}が{context}場面で{spec_title}の選択肢として確認する",
+    ]
+    return clean(templates[(n + position) % len(templates)].format(option=option, context=context, focus=focus, role=role, spec_title=spec["title"]))
+
+
 def unique_options(options):
     out = []
     for item in options:
-        item = clean(item)
+        item = remove_tell_phrases(item)
         if item and item not in out:
             out.append(item)
     for item in GLOBAL_DISTRACTORS:
+        item = remove_tell_phrases(item)
         if len(out) >= 4:
             break
         if item not in out:
@@ -579,29 +693,95 @@ def unique_options(options):
     return out[:4]
 
 
-def place_answer(correct, distractors, seed):
+def place_answer(correct, distractors, seed, spec=None, n=0, qtype="scenario"):
+    correct = remove_tell_phrases(correct)
+    distractors = [remove_tell_phrases(d) for d in distractors]
     opts = unique_options([correct] + distractors)
     if correct not in opts:
         opts[0] = correct
     correct_index = seed % 4
-    opts = [o for o in opts if o != correct]
-    opts.insert(correct_index, correct)
+    wrongs = [o for o in opts if o != correct]
+    final_wrongs = []
+    for pos, wrong in enumerate(wrongs):
+        final_wrongs.append(option_variant(wrong, spec, n, pos + 1, qtype, False) if spec else wrong)
+    answer_text = option_variant(correct, spec, n, 0, qtype, True) if spec else correct
+    while len(final_wrongs) < 3:
+        candidate = option_variant(GLOBAL_DISTRACTORS[(n + len(final_wrongs)) % len(GLOBAL_DISTRACTORS)], spec, n, len(final_wrongs) + 1, qtype, False) if spec else GLOBAL_DISTRACTORS[(n + len(final_wrongs)) % len(GLOBAL_DISTRACTORS)]
+        if candidate != answer_text and candidate not in final_wrongs:
+            final_wrongs.append(candidate)
+        else:
+            final_wrongs.append(f"{candidate}。判断条件の扱いが異なる")
+    opts = final_wrongs[:3]
+    opts.insert(correct_index, answer_text)
     opts = opts[:4]
-    return opts, opts.index(correct)
+    if len(set(opts)) != 4:
+        deduped = []
+        for idx, option in enumerate(opts):
+            candidate = option
+            suffix_index = 0
+            while candidate in deduped:
+                candidate = f"{option}。{OPTION_CONTEXTS[(n + idx + suffix_index) % len(OPTION_CONTEXTS)]}場合の扱いが異なる"
+                suffix_index += 1
+            deduped.append(candidate)
+        opts = deduped
+    return opts, opts.index(answer_text)
 
 
-def explanation(spec, answer, qtype, wrong_hint=None):
+def wrong_reason(option):
+    option = remove_tell_phrases(option)
+    if "省" in option or "記録せず" in option or "記録しにくい" in option:
+        return "必要な証跡や判断根拠を残せない点が不適切である"
+    if "同じ深さ" in option or "一律" in option:
+        return "リスクや目的に応じた調整をしていない"
+    if "自動化" in option or "ツール" in option:
+        return "ツールや自動化の支援範囲を過大に扱っている"
+    if "終盤" in option or "遅らせ" in option:
+        return "早期フィードバックの機会を失う"
+    if "実行件数" in option or "件数" in option:
+        return "実行量と品質判断を混同している"
+    if "期待" in option and "確認せず" in option:
+        return "期待結果や関係者の合意を確認していない"
+    return "目的、対象、責務、タイミングのいずれかを取り違えている"
+
+
+def calculation_detail(spec, answer):
+    section = spec["section"]
+    if section == "4.2.1":
+        return "同値分割では、有効同値クラスと無効同値クラスを分け、それぞれから代表値を選ぶ。"
+    if section == "4.2.2":
+        return "境界値分析では、下限、上限、その直前直後を候補にして境界周辺の欠陥を狙う。"
+    if section == "4.2.3":
+        return "デシジョンテーブルでは、条件数 n に対して組合せを整理し、各ルールの期待結果を確認する。"
+    if section == "5.1.4" and "3+4×5+9" in answer:
+        return "三点見積りは (楽観値 + 4×最頻値 + 悲観値) / 6 = (3+4×5+9)/6 = 5.3 人日で計算する。"
+    if section == "5.1.4":
+        return "見積りでは、過去実績、比率、前提条件を対応付けて作業量を計算する。"
+    return "条件、期待結果、選択肢の値を対応付けて、設問で求められた判断を行う。"
+
+
+def explanation(spec, answer, qtype, wrong_options=None, context="", wrong_hint=None):
     section = f"{spec['section']} {spec['title']}"
-    reason = f"{LEVEL_HINTS[spec['k']]}この問題では「{answer}」が、{spec['title']}の考え方に沿っている。"
+    opener = EXPLANATION_OPENERS[(len(spec["section"]) + len(answer)) % len(EXPLANATION_OPENERS)].format(topic=spec["title"])
+    if qtype == "calculation":
+        reason = calculation_detail(spec, answer)
+    elif qtype == "negative":
+        reason = f"{opener} 正答は不適切な選択肢であり、{wrong_reason(answer)}。"
+    elif context:
+        reason = f"{opener} 状況では「{context}」ため、正答は制約と目的に沿っている。"
+    else:
+        reason = f"{opener} {LEVEL_HINTS[spec['k']]}正答は{spec['title']}で重視する対象と効果を過不足なく扱っている。"
     if wrong_hint:
         reason = wrong_hint
-    if qtype == "incorrect_choice":
-        other_note = "この設問は誤っているものを選ぶ形式であり、他の選択肢は学習目的に沿った説明である。"
+    wrong_options = wrong_options or []
+    wrong_bits = []
+    if qtype == "negative":
+        wrong_bits = [f"「{remove_tell_phrases(o)}」は節の考え方に沿うため、ここでは選ばない" for o in wrong_options[:2]]
     else:
-        other_note = "目的、対象、タイミング、責務、またはリスクの扱いがこの学習目的とずれている。"
+        wrong_bits = [f"「{remove_tell_phrases(o)}」は{wrong_reason(o)}" for o in wrong_options[:2]]
+    other_note = "。".join(wrong_bits) + "。" if wrong_bits else "他の選択肢は、設問の目的または対象との対応が弱い。"
     return (
         f"[{section}]\n"
-        f"正解は「{answer}」。\n"
+        f"正解は「{remove_tell_phrases(answer)}」。\n"
         f"理由: {reason}\n"
         f"他の選択肢: {other_note}\n"
         f"根拠: JSTQB Foundation Level シラバス Version 2023V4.0.J02 の {spec['section']} に基づくオリジナル問題。"
@@ -614,71 +794,64 @@ def generic_question(spec, n):
     qtype = QUESTION_TYPES[n % len(QUESTION_TYPES)]
     point = points[n % len(points)]
     alt_points = rotate(points, n + 1)
-    scenario = SCENARIOS[n % len(SCENARIOS)]
-    detail = CONTEXT_DETAILS[(n // len(SCENARIOS)) % len(CONTEXT_DETAILS)]
-    context_line = f"\n文脈: {scenario}。確認観点: {detail}。"
+    context = scenario_text(spec, n)
+    focus = focus_for(n)
     seed = n + sum(ord(c) for c in spec["lo"])
 
     if spec["k"] == "K3" and qtype in {"definition", "purpose", "distinction"}:
         qtype = "scenario"
+    if spec["k"] == "K1" and qtype in {"scenario", "example"}:
+        qtype = "definition"
     if spec["k"] == "K1" and qtype == "calculation":
         qtype = "definition"
     if qtype == "calculation" and spec["section"] not in {"4.2.1", "4.2.2", "4.2.3", "4.2.4", "4.5.3", "5.1.4", "5.1.5", "5.2.1", "5.5.1"}:
         qtype = "example"
 
     if qtype == "definition":
-        question = f"{spec['title']}について、最も適切な説明はどれか。{context_line}"
+        question = f"{spec['title']}について、{focus}を踏まえた説明として最も適切なものはどれか。"
         correct = point
         wrongs = distractors[n % len(distractors):] + distractors[: n % len(distractors)]
     elif qtype == "purpose":
-        question = f"{spec['title']}の目的または価値として最も適切なものはどれか。{context_line}"
+        label = "価値" if "目的" in spec["title"] else "目的または価値"
+        question = f"{spec['title']}の{label}について、{focus}に最も合うものはどれか。"
         correct = point
         wrongs = distractors
     elif qtype == "distinction":
-        question = f"{spec['title']}に関する説明として、他の概念と区別したときに最も妥当なものはどれか。{context_line}"
+        question = f"{spec['title']}を関連概念と区別する説明として、{focus}に最も合うものはどれか。"
         correct = point
         wrongs = distractors + alt_points[1:3]
     elif qtype == "process":
-        question = f"{spec['title']}を実務で扱うとき、手順または進め方として最も適切なものはどれか。{context_line}"
+        question = f"{spec['title']}を実務で扱うとき、{focus}として最も適切な進め方はどれか。"
         correct = point
         wrongs = distractors
     elif qtype == "example":
-        question = f"次の状況で、{spec['title']}の考え方に最も合う対応はどれか。\n状況: {scenario}。確認観点: {detail}。"
+        question = f"状況: {context}。この状況で、{spec['title']}の考え方に最も合う対応はどれか。"
         correct = point
         wrongs = distractors
     elif qtype == "scenario":
-        question = f"状況: {scenario}。確認観点: {detail}。{spec['title']}の観点から、最も適切な判断はどれか。"
+        question = f"状況: {context}。{spec['title']}に基づく判断として、最も適切なものはどれか。"
         correct = point
         wrongs = distractors
     elif qtype == "misconception":
-        question = f"{spec['title']}について、よくある誤解を避ける説明として最も適切なものはどれか。{context_line}"
+        question = f"{spec['title']}について、{focus}で起こりやすい誤解を避ける説明はどれか。"
         correct = point
         wrongs = distractors
-    elif qtype == "best_choice":
-        question = f"{spec['title']}に関する次の選択肢のうち、最も実務上妥当なものはどれか。{context_line}"
-        correct = point
-        wrongs = distractors
-    elif qtype == "incorrect_choice":
-        question = f"{spec['title']}に関する説明として、誤っているものはどれか。{context_line}"
+    elif qtype == "negative":
+        question = f"{spec['title']}に関する説明として、{focus}から見て不適切なものはどれか。"
         correct = distractors[n % len(distractors)]
         wrongs = alt_points[:3]
-        return question, correct, wrongs, qtype, explanation(
-            spec,
-            correct,
-            qtype,
-            f"この選択肢は{spec['title']}の目的や使い方を取り違えている。正しい説明は、他の選択肢にあるように学習目的の範囲で判断する。",
-        )
     else:
-        question = f"{spec['title']}について、最も適切なものはどれか。{context_line}"
+        question = f"{spec['title']}について、{focus}に最も合うものはどれか。"
         correct = point
         wrongs = distractors
 
-    return question, correct, wrongs, qtype, explanation(spec, correct, qtype)
+    return question, correct, wrongs, qtype, context if qtype in {"scenario", "example"} else ""
 
 
 def special_question(spec, n):
     sec = spec["section"]
-    detail = f"{CONTEXT_DETAILS[n % len(CONTEXT_DETAILS)]}・派生条件{(n // len(CONTEXT_DETAILS)) + 1}"
+    detail = CONTEXT_DETAILS[n % len(CONTEXT_DETAILS)]
+    context = scenario_text(spec, n)
     if sec == "4.2.1":
         ranges = [
             ("年齢が18歳以上65歳以下なら申込可能", "18〜65歳を有効同値クラス、17歳以下と66歳以上を無効同値クラスとして代表値を選ぶ"),
@@ -686,9 +859,9 @@ def special_question(spec, n):
             ("パスワード長が8文字以上20文字以下なら登録可能", "8〜20文字を有効同値クラス、7文字以下と21文字以上を無効同値クラスとして代表値を選ぶ"),
         ]
         rule, correct = ranges[n % len(ranges)]
-        question = f"同値分割法でテストケースを導出する。仕様は「{rule}」。確認観点: {detail}。最も適切な分割はどれか。"
+        question = f"同値分割法でテストケースを導出する。仕様は「{rule}」。{detail}として、最も適切な分割はどれか。"
         wrongs = ["範囲内のすべての値だけを有効同値クラスとして列挙する", "中央値だけを選び、範囲外の値は確認しない", "有効値と無効値を同じ同値クラスとして扱う"]
-        return question, correct, wrongs, "calculation", explanation(spec, correct, "calculation")
+        return question, correct, wrongs, "calculation", context
     if sec == "4.2.2":
         cases = [
             ("1以上100以下", "0、1、100、101を含めて境界の内外を確認する"),
@@ -696,9 +869,9 @@ def special_question(spec, n):
             ("0円以上9999円以下", "-1円、0円、9999円、10000円を含めて確認する"),
         ]
         rng, correct = cases[n % len(cases)]
-        question = f"境界値分析を適用する。入力条件は「{rng}を受け付ける」。確認観点: {detail}。境界を確認する組み合わせとして最も適切なものはどれか。"
+        question = f"境界値分析を適用する。入力条件は「{rng}を受け付ける」。{detail}として、境界を確認する組み合わせはどれか。"
         wrongs = ["範囲の中央付近の値だけを複数選ぶ", "有効範囲外の値をすべて除外して確認する", "ランダムに4つの値を選び境界かどうかは考えない"]
-        return question, correct, wrongs, "calculation", explanation(spec, correct, "calculation")
+        return question, correct, wrongs, "calculation", context
     if sec == "4.2.3":
         cases = [
             ("会員であり、かつ購入金額が1万円以上なら送料無料", "会員かどうかと購入金額条件の組み合わせごとに期待結果を表にする"),
@@ -706,9 +879,9 @@ def special_question(spec, n):
             ("管理者または承認者だけが公開操作を実行できる", "権限条件の組み合わせと公開可否をルールとして整理する"),
         ]
         rule, correct = cases[n % len(cases)]
-        question = f"デシジョンテーブルテストを使う場面である。業務ルールは「{rule}」。確認観点: {detail}。最も適切な進め方はどれか。"
+        question = f"デシジョンテーブルテストを使う場面である。業務ルールは「{rule}」。{detail}として、最も適切な進め方はどれか。"
         wrongs = ["条件を一つだけ選び、他の条件は常に真として扱う", "期待結果を決めず、入力値だけを一覧にする", "条件の組み合わせを避け、正常系一件だけを実行する"]
-        return question, correct, wrongs, "calculation", explanation(spec, correct, "calculation")
+        return question, correct, wrongs, "calculation", context
     if sec == "4.2.4":
         cases = [
             ("注文が「作成中」から「確定」になり、その後「出荷済み」になる", "状態、イベント、許可される遷移と禁止される遷移を確認する"),
@@ -716,9 +889,9 @@ def special_question(spec, n):
             ("アカウントが「有効」「ロック中」「停止中」の状態を持つ", "同じログイン操作でも現在状態によって結果が変わることを確認する"),
         ]
         state, correct = cases[n % len(cases)]
-        question = f"状態遷移テストを適用する。対象は「{state}」。確認観点: {detail}。最も適切なテスト観点はどれか。"
+        question = f"状態遷移テストを適用する。対象は「{state}」。{detail}として、最も適切なテスト観点はどれか。"
         wrongs = ["状態を無視して入力値の大小だけを確認する", "最初の状態だけを確認し、イベント順序は扱わない", "禁止される遷移はテスト対象から常に除外する"]
-        return question, correct, wrongs, "scenario", explanation(spec, correct, "scenario")
+        return question, correct, wrongs, "scenario", context
     if sec == "4.5.3":
         cases = [
             ("Given ログイン済みの会員、When カートの商品を購入する、Then 注文番号が表示される", "前提、操作、期待結果が対応しており受け入れテストに使える"),
@@ -726,9 +899,9 @@ def special_question(spec, n):
             ("Given 残高が不足している、When 送金する、Then エラーメッセージを表示し送金しない", "ビジネスルールを確認可能な例に落とし込んでいる"),
         ]
         example, correct = cases[n % len(cases)]
-        question = f"ATDDでテストケースを導出する。次の例「{example}」の扱いとして、確認観点「{detail}」で最も適切なものはどれか。"
+        question = f"ATDDでテストケースを導出する。次の例「{example}」を{detail}で使う場合、最も適切な扱いはどれか。"
         wrongs = ["実装後の内部メソッド名だけを確認する例なので受け入れ基準には使わない", "期待結果がないためテストケース化できない", "ビジネス側の合意なしにテスト担当者だけで結果を変更する"]
-        return question, correct, wrongs, "scenario", explanation(spec, correct, "scenario")
+        return question, correct, wrongs, "scenario", context
     if sec == "5.1.4":
         cases = [
             ("過去比率が開発:テスト=3:2、今回の開発見積りが600人日", "テスト工数は400人日と見積もる"),
@@ -736,9 +909,9 @@ def special_question(spec, n):
             ("楽観値8、最頻値14、悲観値26人日", "三点見積りでは不確実性を考慮した代表値を使う"),
         ]
         data, correct = cases[n % len(cases)]
-        question = f"見積り技法を使う。条件: {data}。確認観点: {detail}。最も適切な判断はどれか。"
+        question = f"見積り技法を使う。条件: {data}。{detail}として、最も適切な判断はどれか。"
         wrongs = ["根拠を使わず常に10人日と固定する", "最大値だけを採用し、関係者に不確実性を説明しない", "過去実績を無視して作業を分解しない"]
-        return question, correct, wrongs, "calculation", explanation(spec, correct, "calculation")
+        return question, correct, wrongs, "calculation", context
     if sec == "5.1.5":
         cases = [
             ("決済失敗は事業影響が大きく、発生可能性も高い", "決済関連のテストケースを早い順序に置く"),
@@ -746,9 +919,9 @@ def special_question(spec, n):
             ("在庫引当は他機能が依存し、失敗時の影響が大きい", "依存元になる在庫引当の確認を優先する"),
         ]
         data, correct = cases[n % len(cases)]
-        question = f"テストケースの優先順位付けを行う。状況: {data}。確認観点: {detail}。最も適切な判断はどれか。"
+        question = f"テストケースの優先順位付けを行う。状況: {data}。{detail}として、最も適切な判断はどれか。"
         wrongs = ["作成日が古いテストケースだけを必ず先に実行する", "低リスクの表示確認を常に最優先にする", "依存関係や事業影響を考慮せずランダムに実行する"]
-        return question, correct, wrongs, "scenario", explanation(spec, correct, "scenario")
+        return question, correct, wrongs, "scenario", context
     if sec == "5.2.1":
         cases = [
             ("可能性が高く、影響も大きい", "リスクレベルは高く、優先的な対応が必要である"),
@@ -756,9 +929,9 @@ def special_question(spec, n):
             ("可能性も影響も小さい", "他の高リスク項目より優先度を下げる候補になる"),
         ]
         data, correct = cases[n % len(cases)]
-        question = f"リスクレベルを評価する。条件: {data}。確認観点: {detail}。最も適切な判断はどれか。"
+        question = f"リスクレベルを評価する。条件: {data}。{detail}として、最も適切な判断はどれか。"
         wrongs = ["影響度を無視し、発生可能性だけで決める", "どの条件でもリスクレベルは同じとみなす", "評価結果はテストの優先順位に使わない"]
-        return question, correct, wrongs, "calculation", explanation(spec, correct, "calculation")
+        return question, correct, wrongs, "calculation", context
     if sec == "5.5.1":
         cases = [
             ("特定ブラウザだけで購入完了ボタン押下後に500エラーが出る", "環境、再現手順、期待結果、実際結果、影響を記載する"),
@@ -766,18 +939,21 @@ def special_question(spec, n):
             ("CSV取込で一部行だけ登録されない", "使用ファイル、手順、期待件数、実際件数、ログを添える"),
         ]
         data, correct = cases[n % len(cases)]
-        question = f"欠陥レポートを準備する。観察結果: {data}。確認観点: {detail}。最も適切な記載方針はどれか。"
+        question = f"欠陥レポートを準備する。観察結果: {data}。{detail}として、最も適切な記載方針はどれか。"
         wrongs = ["詳しい条件を書かず「動かない」とだけ報告する", "期待結果を省略し、実際結果だけを感想で書く", "再現に必要なデータや環境情報を記載しない"]
-        return question, correct, wrongs, "scenario", explanation(spec, correct, "scenario")
+        return question, correct, wrongs, "scenario", context
     return generic_question(spec, n)
 
 
 def generate_question(spec, n, qid):
     if spec["k"] == "K3" and n % 2 == 0:
-        question, correct, wrongs, qtype, exp = special_question(spec, n)
+        question, correct, wrongs, qtype, context = special_question(spec, n)
     else:
-        question, correct, wrongs, qtype, exp = generic_question(spec, n)
-    options, correct_index = place_answer(correct, wrongs, n + len(qid))
+        question, correct, wrongs, qtype, context = generic_question(spec, n)
+    options, correct_index = place_answer(correct, wrongs, n + len(qid), spec, n, qtype)
+    answer = options[correct_index]
+    wrong_options = [option for idx, option in enumerate(options) if idx != correct_index]
+    exp = explanation(spec, answer, qtype, wrong_options, context)
     return {
         "id": qid,
         "chapter": spec["chapter"],
@@ -789,7 +965,7 @@ def generate_question(spec, n, qid):
         "sourceBasis": f"JSTQB Foundation Level シラバス Version 2023V4.0.J02 {spec['section']} に基づくオリジナル問題",
         "question": question,
         "options": options,
-        "answer": correct,
+        "answer": answer,
         "correctIndex": correct_index,
         "explanation": exp,
     }
@@ -815,7 +991,45 @@ def build_questions():
             chapter_seq[spec["chapter"]] += 1
             qid = id_for(spec["chapter"], chapter_seq[spec["chapter"]])
             questions.append(generate_question(spec, n, qid))
+    deduplicate_question_texts(questions)
     return questions, targets
+
+
+def deduplicate_question_texts(questions):
+    seen = Counter()
+    for index, q in enumerate(questions):
+        key = clean(q["question"])
+        seen[key] += 1
+        if seen[key] == 1:
+            continue
+        q["question"] = (
+            f"{q['question']} 追加条件: {scenario_text({'title': q.get('section', '学習項目'), 'section': q.get('section', '')}, index)}。"
+        )
+
+
+def chapter_payload(data, chapter):
+    questions = [q for q in data["questions"] if q["chapter"] == chapter]
+    return {
+        "meta": {
+            **data["meta"],
+            "questionCount": len(questions),
+            "chapters": [chapter],
+        },
+        "questions": questions,
+    }
+
+
+def write_question_files(data):
+    QUESTIONS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for chapter in CHAPTER_TARGETS:
+        chapter_no = chapter[0]
+        path = ROOT / "data" / f"questions_{chapter_no}.json"
+        path.write_text(json.dumps(chapter_payload(data, chapter), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    DATA_JS_PATH.write_text(
+        "window.EMBEDDED_QUESTIONS = " + json.dumps(data, ensure_ascii=False) + ";\n"
+        "window.INITIAL_LOGS = {\"version\":2,\"sessions\":[],\"answers\":[],\"questionStats\":{},\"stats\":{\"total\":0,\"correct\":0,\"incorrect\":0,\"accuracy\":0}};\n",
+        encoding="utf-8",
+    )
 
 
 def validate(data):
@@ -914,12 +1128,7 @@ def main():
     if errors:
         raise SystemExit("\n".join(errors[:50]))
 
-    QUESTIONS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    DATA_JS_PATH.write_text(
-        "window.EMBEDDED_QUESTIONS = " + json.dumps(data, ensure_ascii=False) + ";\n"
-        "window.INITIAL_LOGS = {\"version\":1,\"sessions\":[],\"answers\":[],\"stats\":{\"total\":0,\"correct\":0,\"incorrect\":0,\"accuracy\":0}};\n",
-        encoding="utf-8",
-    )
+    write_question_files(data)
     write_coverage(questions, targets)
 
     print("old_count", old_count)

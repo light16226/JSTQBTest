@@ -8,6 +8,14 @@ ROOT = Path(__file__).resolve().parents[1]
 QUESTIONS_PATH = ROOT / "data" / "questions.json"
 DATA_JS_PATH = ROOT / "data" / "data.js"
 ALLOWED_CHAPTERS = ["1章", "2章", "3章", "4章", "5章", "6章"]
+EXPECTED_CHAPTER_COUNTS = {
+    "1章": 260,
+    "2章": 300,
+    "3章": 220,
+    "4章": 520,
+    "5章": 500,
+    "6章": 200,
+}
 ALLOWED_QUESTION_TYPES = {
     "definition",
     "purpose",
@@ -86,15 +94,47 @@ def main():
     if data.get("meta", {}).get("questionCount") != len(questions):
         errors.append("meta.questionCount does not match questions length")
 
-    if not (1900 <= len(questions) <= 2100):
-        errors.append(f"question count is outside expected range: {len(questions)}")
+    if len(questions) != 2000:
+        errors.append(f"question count must be 2000: {len(questions)}")
+
+    chapter_counts = Counter(q.get("chapter") for q in questions)
+    if chapter_counts != EXPECTED_CHAPTER_COUNTS:
+        errors.append(f"chapter counts mismatch: {dict(chapter_counts)}")
+
+    for chapter in ALLOWED_CHAPTERS:
+        chapter_no = chapter[0]
+        path = ROOT / "data" / f"questions_{chapter_no}.json"
+        try:
+            chapter_data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"{path.name}: could not parse chapter JSON: {exc}")
+            continue
+        expected_questions = [q for q in questions if q.get("chapter") == chapter]
+        if chapter_data.get("questions") != expected_questions:
+            errors.append(f"{path.name}: chapter file is not synchronized with questions.json")
+        if chapter_data.get("meta", {}).get("questionCount") != len(expected_questions):
+            errors.append(f"{path.name}: meta.questionCount does not match chapter questions")
 
     ids = [q.get("id") for q in questions]
     duplicate_ids = [qid for qid, count in Counter(ids).items() if count > 1]
     if duplicate_ids:
         errors.append(f"duplicate ids: {duplicate_ids[:10]}")
 
-    required = {"id", "chapter", "question", "options", "answer", "correctIndex", "explanation"}
+    required = {
+        "id",
+        "chapter",
+        "section",
+        "learningObjective",
+        "kLevel",
+        "questionType",
+        "difficulty",
+        "sourceBasis",
+        "question",
+        "options",
+        "answer",
+        "correctIndex",
+        "explanation",
+    }
     duplicate_options = []
     non4 = []
     answer_mismatch = []
@@ -122,6 +162,10 @@ def main():
             errors.append(f"{qid}: invalid chapter {q['chapter']}")
         if q.get("questionType") not in ALLOWED_QUESTION_TYPES:
             invalid_question_types.append(qid)
+        if q.get("kLevel") not in {"K1", "K2", "K3"}:
+            errors.append(f"{qid}: invalid kLevel {q.get('kLevel')}")
+        if q.get("difficulty") not in {"easy", "medium", "hard"}:
+            errors.append(f"{qid}: invalid difficulty {q.get('difficulty')}")
         options = q["options"]
         if not isinstance(options, list) or len(options) != 4:
             non4.append(qid)
