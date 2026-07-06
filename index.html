@@ -372,9 +372,9 @@
   function scrollToCurrentQuestionTop(){
     requestAnimationFrame(()=>{
       const quizPanel=byId('quizPanel');
-      const summaryPanel=byId('summaryPanel');
-      const target=quizPanel&&!quizPanel.classList.contains('hidden')?quizPanel:summaryPanel;
-      if(target) target.scrollIntoView({block:'start',behavior:'auto'});
+      const target=byId('qid');
+      if(!quizPanel||quizPanel.classList.contains('hidden')||!target) return;
+      target.scrollIntoView({block:'start',behavior:'auto'});
     });
   }
 
